@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<object name="portal_skins" meta_type="Plone Skins Tool" allow_any="False"
+    cookie_persistence="False" default_skin="Plone Default">
+    <object name="gkss" meta_type="Filesystem Directory View"
+        directory="Products.gkss:skins/browser"/>
+     <skin-path name="Plone Default">
+           <layer name="gkss"/>
+     </skin-path>
+</object>

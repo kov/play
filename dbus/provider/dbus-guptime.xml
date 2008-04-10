@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<node name="/br/eti/kov/GUptime">
+    <interface name="br.eti.kov.GUptime">
+        <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="g_uptime"/>
+        <method name="get">
+            <arg type="d" name="uptime" direction="out" />
+        </method>
+    </interface>
+</node>

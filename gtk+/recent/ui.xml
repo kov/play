@@ -1,0 +1,9 @@
+<ui>
+  <menubar name="MenuBar">
+    <menu name="FileMenu" action="File">
+      <menuitem action="FileNew"/>
+      <separator/>
+      <placeholder name="FileRecentMenu"/>
+    </menu>
+  </menubar>
+</ui>
