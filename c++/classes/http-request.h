@@ -23,6 +23,10 @@ using namespace std;
 
 class HttpRequest {
  public:
+  HttpRequest();
+  HttpRequest(string);
+  HttpRequest(string, string);
+
   string getMethod();
   void setMethod(string);
 

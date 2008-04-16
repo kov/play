@@ -19,6 +19,20 @@
 
 using namespace std;
 
+HttpRequest::HttpRequest()
+{
+}
+
+HttpRequest::HttpRequest(string method)
+  : method(method)
+{
+}
+
+HttpRequest::HttpRequest(string method, string uri)
+  : method(method), uri(uri)
+{
+}
+
 string HttpRequest::getMethod()
 {
   return method;

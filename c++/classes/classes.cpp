@@ -19,6 +19,12 @@
 
 using namespace std;
 
+void print_request(HttpRequest request)
+{
+  cout << request.getMethod() << endl;
+  cout << request.getURI() << endl;
+}
+
 int main()
 {
   HttpRequest request;
@@ -26,8 +32,11 @@ int main()
   request.setMethod("GET");
   request.setURI("/test");
 
-  cout << request.getMethod() << endl;
-  cout << request.getURI() << endl;
+  print_request(request);
+
+  HttpRequest other_request("POST", "/blah");
+
+  print_request(other_request);
 
   return 0;
 }
