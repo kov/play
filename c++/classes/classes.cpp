@@ -19,7 +19,7 @@
 
 using namespace std;
 
-void print_request(HttpRequest request)
+void print_request(HttpRequest& request)
 {
   cout << request.getMethod() << endl << flush;
   cout << request.getURI() << endl << flush;
