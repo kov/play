@@ -27,6 +27,8 @@ class HttpRequest {
   HttpRequest(string);
   HttpRequest(string, string);
 
+  ~HttpRequest();
+
   string getMethod();
   void setMethod(string);
 

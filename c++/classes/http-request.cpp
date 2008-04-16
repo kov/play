@@ -14,6 +14,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <iostream>
 #include <string>
 #include "http-request.h"
 
@@ -31,6 +32,11 @@ HttpRequest::HttpRequest(string method)
 HttpRequest::HttpRequest(string method, string uri)
   : method(method), uri(uri)
 {
+}
+
+HttpRequest::~HttpRequest()
+{
+  cout << "Destructor called!" << endl << flush;
 }
 
 string HttpRequest::getMethod()
