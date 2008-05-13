@@ -30,9 +30,27 @@ on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
             (gdouble)widget->allocation.width,
             (gdouble)widget->allocation.height);
 
+  cairo_scale(cairo_context,
+              (gdouble)widget->allocation.width,
+              (gdouble)widget->allocation.height);
+
   cairo_set_source_rgb(cairo_context, 0.0, 0.0, 0.0);
-  cairo_rectangle (cairo_context, 0.0, 0.0, 200.0, 50.0);
+  cairo_rectangle (cairo_context, 0.0, 0.0, 1.0, 1.0);
   cairo_fill(cairo_context);
+
+  cairo_set_line_width(cairo_context, 0.025);
+
+  cairo_set_source_rgb(cairo_context, 1.0, 0.0, 0.0);
+  cairo_move_to(cairo_context, 0.5, 0.0);
+  cairo_line_to(cairo_context, 0.5, 1.0);
+  cairo_stroke(cairo_context);
+
+  cairo_set_line_width(cairo_context, 0.025*2);
+
+  cairo_move_to(cairo_context, 0.0, 0.5);
+  cairo_line_to(cairo_context, 1.0, 0.5);
+  cairo_stroke(cairo_context);
+
   cairo_destroy(cairo_context);
 
   return FALSE;
