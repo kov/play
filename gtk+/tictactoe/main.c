@@ -27,9 +27,19 @@ int  main(int argc, char **argv)
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   g_signal_connect(G_OBJECT(window), "delete_event",
                    G_CALLBACK(gtk_main_quit), NULL);
-  gtk_window_set_default_size(GTK_WINDOW(window), 200, 50);
+  gtk_window_set_default_size(GTK_WINDOW(window), 200, 200);
 
   tictactoe = gtk_tictactoe_new();
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 0, GTK_TICTACTOE_MARK_X);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 1, GTK_TICTACTOE_MARK_O);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 2, GTK_TICTACTOE_MARK_X);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 0, GTK_TICTACTOE_MARK_O);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 1, GTK_TICTACTOE_MARK_X);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 2, GTK_TICTACTOE_MARK_O);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 0, GTK_TICTACTOE_MARK_X);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 1, GTK_TICTACTOE_MARK_O);
+  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 2, GTK_TICTACTOE_MARK_X);
+
   gtk_container_add(GTK_CONTAINER(window), tictactoe);
 
   gtk_widget_show_all(window);

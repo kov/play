@@ -32,9 +32,17 @@ G_BEGIN_DECLS
 typedef struct _GtkTicTacToe       GtkTicTacToe;
 typedef struct _GtkTicTacToeClass  GtkTicTacToeClass;
 
+typedef enum
+  {
+    GTK_TICTACTOE_MARK_X = 1,
+    GTK_TICTACTOE_MARK_O
+  } GtkTicTacToeMark;
+
 struct _GtkTicTacToe
 {
   GtkDrawingArea parent;
+
+  guint data[3][3];
 };
 
 struct _GtkTicTacToeClass
@@ -44,6 +52,7 @@ struct _GtkTicTacToeClass
 
 GType gtk_tictactoe_get_type (void) G_GNUC_CONST;
 GtkWidget* gtk_tictactoe_new ();
+void gtk_tictactoe_mark(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark mark);
 
 G_END_DECLS
 

@@ -16,6 +16,7 @@
 
 #include <gtk/gtk.h>
 #include <glib-object.h>
+#include <math.h>
 
 #include "gtktictactoe.h"
 
@@ -24,7 +25,9 @@ G_DEFINE_TYPE(GtkTicTacToe, gtk_tictactoe, GTK_TYPE_DRAWING_AREA);
 static gboolean
 on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
 {
+  GtkTicTacToe *tictactoe = GTK_TICTACTOE(widget);
   cairo_t  *cairo_context = gdk_cairo_create(widget->window);
+  int i, j;
 
   g_message("Allocation: %f x %f",
             (gdouble)widget->allocation.width,
@@ -34,22 +37,61 @@ on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
               (gdouble)widget->allocation.width,
               (gdouble)widget->allocation.height);
 
-  cairo_set_source_rgb(cairo_context, 0.0, 0.0, 0.0);
+  cairo_set_source_rgb(cairo_context, 1.0, 1.0, 1.0);
   cairo_rectangle (cairo_context, 0.0, 0.0, 1.0, 1.0);
   cairo_fill(cairo_context);
 
-  cairo_set_line_width(cairo_context, 0.025);
+  cairo_set_line_width(cairo_context, 0.015);
 
-  cairo_set_source_rgb(cairo_context, 1.0, 0.0, 0.0);
-  cairo_move_to(cairo_context, 0.5, 0.0);
-  cairo_line_to(cairo_context, 0.5, 1.0);
+  /* draws the vertical lines */
+  cairo_set_source_rgb(cairo_context, 0.0, 0.0, 0.0);
+  cairo_move_to(cairo_context, 0.35, 0.05);
+  cairo_line_to(cairo_context, 0.35, 0.95);
   cairo_stroke(cairo_context);
 
-  cairo_set_line_width(cairo_context, 0.025*2);
-
-  cairo_move_to(cairo_context, 0.0, 0.5);
-  cairo_line_to(cairo_context, 1.0, 0.5);
+  cairo_move_to(cairo_context, 0.65, 0.05);
+  cairo_line_to(cairo_context, 0.65, 0.95);
   cairo_stroke(cairo_context);
+
+  /* draws the horizontal lines */
+  cairo_move_to(cairo_context, 0.05, 0.35);
+  cairo_line_to(cairo_context, 0.95, 0.35);
+  cairo_stroke(cairo_context);
+
+  cairo_move_to(cairo_context, 0.05, 0.65);
+  cairo_line_to(cairo_context, 0.95, 0.65);
+  cairo_stroke(cairo_context);
+
+  /* draws the marks */
+  for(i = 0; i < 3; i++)
+    {
+      for(j = 0; j < 3; j++)
+        {
+          gdouble x_offset = 0.10;
+          gdouble y_offset = 0.10;
+          
+          x_offset += (0.30 * i);
+
+          y_offset += (0.30 * j);
+
+          if(tictactoe->data[i][j] == GTK_TICTACTOE_MARK_X)
+            {
+              /* drawing the X */
+              cairo_move_to(cairo_context, x_offset, y_offset);
+              cairo_line_to(cairo_context, x_offset + 0.20, y_offset + 0.20);
+              cairo_stroke(cairo_context);
+
+              cairo_move_to(cairo_context, x_offset + 0.20, y_offset);
+              cairo_line_to(cairo_context, x_offset, y_offset + 0.20);
+              cairo_stroke(cairo_context);
+            }
+          else if(tictactoe->data[i][j] == GTK_TICTACTOE_MARK_O)
+            {
+              cairo_arc(cairo_context, x_offset + 0.10, y_offset + 0.10, 0.10, 0, 2 * M_PI);
+              cairo_stroke(cairo_context);
+            }
+        }
+    }
 
   cairo_destroy(cairo_context);
 
@@ -84,4 +126,22 @@ gtk_tictactoe_new ()
   tictactoe = g_object_new (GTK_TYPE_TICTACTOE, NULL);  
 
   return GTK_WIDGET (tictactoe);
+}
+
+void
+gtk_tictactoe_mark(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark mark)
+{
+  if((x < 0) || (x > 2))
+    {
+      g_warning("Value of x must be between 0 and 2.");
+      return;
+    }
+
+  if((y < 0) || (y > 2))
+    {
+      g_warning("Value of y must be between 0 and 2.");
+      return;
+    }
+
+  tictactoe->data[x][y] = mark;
 }
