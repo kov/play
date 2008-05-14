@@ -49,6 +49,12 @@ gtk_tictactoe_mark_get_type()
 
 G_DEFINE_TYPE(GtkTicTacToe, gtk_tictactoe, GTK_TYPE_DRAWING_AREA);
 
+static void
+on_realize_cb(GtkWidget *tictactoe)
+{
+  gtk_widget_add_events(GTK_WIDGET(tictactoe), GDK_BUTTON_PRESS_MASK|GDK_BUTTON_RELEASE_MASK);
+}
+
 static gboolean
 on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
 {
@@ -171,6 +177,43 @@ mark_added_cb(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark mark)
     g_signal_emit(tictactoe, gtk_tictactoe_signals[VICTORY_REACHED], 0, mark);
 }
 
+gboolean
+on_button_release_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+  GtkTicTacToe *tictactoe = GTK_TICTACTOE(widget);
+  gdouble width, height;
+  gdouble x, y;
+  if(gdk_event_get_coords((GdkEvent*)event, &x, &y))
+    {
+      gdouble relative_x, relative_y;
+      guint coord_x, coord_y;
+
+      width = (gdouble)widget->allocation.width;
+      height = (gdouble)widget->allocation.height;
+
+      relative_x = x / width;
+      relative_y = y / height;
+
+      if(relative_x <= 0.35)
+        coord_x = 0;
+      else if((relative_x > 0.35) && (relative_x <= 0.65))
+        coord_x = 1;
+      else
+        coord_x = 2;
+
+      if(relative_y <= 0.35)
+        coord_y = 0;
+      else if((relative_y > 0.35) && (relative_y <= 0.65))
+        coord_y = 1;
+      else
+        coord_y = 2;
+
+      g_message("Click at %dx%d", coord_x, coord_y);
+      gtk_tictactoe_mark(tictactoe, coord_x, coord_y, tictactoe->current_mark);
+    }
+  return FALSE;
+}
+
 static void
 gtk_tictactoe_finalize (GObject *object)
 {
@@ -212,11 +255,19 @@ gtk_tictactoe_class_init (GtkTicTacToeClass *klass)
 static void
 gtk_tictactoe_init (GtkTicTacToe *tictactoe)
 {
-  g_signal_connect (G_OBJECT (tictactoe), "expose-event",
-                    G_CALLBACK (on_expose), NULL);
+  tictactoe->current_mark = GTK_TICTACTOE_MARK_X;
 
-  g_signal_connect (G_OBJECT (tictactoe), "mark-added",
-                    G_CALLBACK (mark_added_cb), NULL);
+  g_signal_connect(G_OBJECT(tictactoe), "expose-event",
+                   G_CALLBACK(on_expose), NULL);
+
+  g_signal_connect(G_OBJECT(tictactoe), "realize",
+                   G_CALLBACK(on_realize_cb), NULL);
+
+  g_signal_connect(G_OBJECT(tictactoe), "button-release-event",
+                   G_CALLBACK(on_button_release_cb), NULL);
+
+  g_signal_connect(G_OBJECT(tictactoe), "mark-added",
+                   G_CALLBACK(mark_added_cb), NULL);
 }
 
 GtkWidget * 
@@ -244,6 +295,12 @@ gtk_tictactoe_mark(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark m
     }
 
   tictactoe->data[x][y] = mark;
+      
+  if(tictactoe->current_mark == GTK_TICTACTOE_MARK_X)
+    tictactoe->current_mark = GTK_TICTACTOE_MARK_O;
+  else
+    tictactoe->current_mark = GTK_TICTACTOE_MARK_X;
 
+  gtk_widget_queue_draw(GTK_WIDGET(tictactoe));
   g_signal_emit(tictactoe, gtk_tictactoe_signals[MARK_ADDED], 0, x, y, mark);
 }

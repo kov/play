@@ -46,6 +46,7 @@ struct _GtkTicTacToe
   GtkDrawingArea parent;
 
   guint data[3][3];
+  GtkTicTacToeMark current_mark;
 };
 
 struct _GtkTicTacToeClass

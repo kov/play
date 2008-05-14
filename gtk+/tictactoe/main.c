@@ -20,7 +20,15 @@
 void
 victory_reached_cb(GtkWidget *tictactoe, GtkTicTacToeMark mark)
 {
-  g_message("Victory reached by mark %d!", mark);
+  GtkWidget *dialog;
+
+  dialog = gtk_message_dialog_new_with_markup(NULL,
+                                              GTK_DIALOG_MODAL,
+                                              GTK_MESSAGE_INFO,
+                                              GTK_BUTTONS_CLOSE,
+                                              "<b><big>You win!</big></b>");
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
 }
 
 int  main(int argc, char **argv)
@@ -39,15 +47,15 @@ int  main(int argc, char **argv)
   g_signal_connect(G_OBJECT(tictactoe), "victory-reached",
                    G_CALLBACK(victory_reached_cb), NULL);
 
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 0, GTK_TICTACTOE_MARK_X);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 1, GTK_TICTACTOE_MARK_O);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 2, GTK_TICTACTOE_MARK_O);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 0, GTK_TICTACTOE_MARK_O);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 1, GTK_TICTACTOE_MARK_X);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 2, GTK_TICTACTOE_MARK_O);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 0, GTK_TICTACTOE_MARK_X);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 1, GTK_TICTACTOE_MARK_O);
-  gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 2, GTK_TICTACTOE_MARK_X);
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 0, GTK_TICTACTOE_MARK_X); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 1, GTK_TICTACTOE_MARK_O); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 0, 2, GTK_TICTACTOE_MARK_O); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 0, GTK_TICTACTOE_MARK_O); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 1, GTK_TICTACTOE_MARK_X); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 1, 2, GTK_TICTACTOE_MARK_O); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 0, GTK_TICTACTOE_MARK_X); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 1, GTK_TICTACTOE_MARK_O); */
+/*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 2, GTK_TICTACTOE_MARK_X); */
 
   gtk_container_add(GTK_CONTAINER(window), tictactoe);
 
