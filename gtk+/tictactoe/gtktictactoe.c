@@ -104,6 +104,7 @@ on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
           if(tictactoe->data[i][j] == GTK_TICTACTOE_MARK_X)
             {
               /* drawing the X */
+              cairo_set_source_rgb(cairo_context, 1.0, 0.0, 0.0);
               cairo_move_to(cairo_context, x_offset, y_offset);
               cairo_line_to(cairo_context, x_offset + 0.20, y_offset + 0.20);
               cairo_stroke(cairo_context);
@@ -114,6 +115,7 @@ on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
             }
           else if(tictactoe->data[i][j] == GTK_TICTACTOE_MARK_O)
             {
+              cairo_set_source_rgb(cairo_context, 0.0, 0.0, 1.0);
               cairo_arc(cairo_context, x_offset + 0.10, y_offset + 0.10, 0.10, 0, 2 * M_PI);
               cairo_stroke(cairo_context);
             }
