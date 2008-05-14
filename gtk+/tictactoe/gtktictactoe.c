@@ -24,6 +24,7 @@
 enum
   {
     MARK_ADDED,
+    VICTORY_REACHED,
     LAST_SIGNAL
   };
 
@@ -127,7 +128,45 @@ on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
 static void
 mark_added_cb(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark mark)
 {
+  gboolean victory = FALSE;
+  gint count = 0;
+
   g_message("Mark added at %dx%d: %d", x, y, (gint)mark);
+  
+  /* check if we have a victory vertically */
+  if(((tictactoe->data[x][0] != 0) && (tictactoe->data[x][1] != 0) && (tictactoe->data[x][1] != 0)) &&
+     ((tictactoe->data[x][0] == tictactoe->data[x][1]) && (tictactoe->data[x][1] == tictactoe->data[x][2])))
+    {
+      victory = TRUE;
+      goto check_victory;
+    }
+
+  /* check if we have a victory horizontally */
+  if(((tictactoe->data[0][y] != 0) && (tictactoe->data[1][y] != 0) && (tictactoe->data[2][y] != 0)) &&
+     ((tictactoe->data[0][y] == tictactoe->data[1][y]) && (tictactoe->data[1][y] == tictactoe->data[2][y])))
+    {
+      victory = TRUE;
+      goto check_victory;
+    }
+
+  /* or on the diagonals */
+  if( ((tictactoe->data[0][0] != 0) && (tictactoe->data[1][1] != 0) && (tictactoe->data[2][2] != 0)) &&
+      ((tictactoe->data[0][0] == tictactoe->data[1][1]) && (tictactoe->data[1][1] == tictactoe->data[2][2])) )
+    {
+      victory = TRUE;
+      goto check_victory;
+    }
+
+  if( ((tictactoe->data[2][0] != 0) && (tictactoe->data[1][1] != 0) && (tictactoe->data[0][2] != 0)) &&
+      ((tictactoe->data[2][0] == tictactoe->data[1][1]) && (tictactoe->data[1][1] == tictactoe->data[0][2])) )
+    {
+      victory = TRUE;
+      goto check_victory;
+    }
+
+ check_victory:
+  if(victory)
+    g_signal_emit(tictactoe, gtk_tictactoe_signals[VICTORY_REACHED], 0, mark);
 }
 
 static void
@@ -153,6 +192,17 @@ gtk_tictactoe_class_init (GtkTicTacToeClass *klass)
                                                    G_TYPE_INT,
                                                    G_TYPE_INT,
                                                    GTK_TYPE_TICTACTOE_MARK);
+
+  gtk_tictactoe_signals[VICTORY_REACHED] = g_signal_new("victory-reached",
+                                                        GTK_TYPE_TICTACTOE,
+                                                        G_SIGNAL_RUN_LAST|G_SIGNAL_ACTION,
+                                                        0,
+                                                        NULL,
+                                                        NULL,
+                                                        g_cclosure_marshal_VOID__ENUM,
+                                                        G_TYPE_NONE,
+                                                        1,
+                                                        GTK_TYPE_TICTACTOE_MARK);
 
   object_class->finalize = gtk_tictactoe_finalize;
 }
