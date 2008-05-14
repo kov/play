@@ -21,6 +21,15 @@
 
 G_BEGIN_DECLS
 
+#define GTK_TYPE_TICTACTOE_MARK		  (gtk_tictactoe_mark_get_type ())
+
+typedef enum
+  {
+    GTK_TICTACTOE_MARK_X = 1,
+    GTK_TICTACTOE_MARK_O
+  } GtkTicTacToeMark;
+
+
 #define GTK_TYPE_TICTACTOE		  (gtk_tictactoe_get_type ())
 #define GTK_TICTACTOE(obj)		  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_TICTACTOE, GtkTicTacToe))
 #define GTK_TICTACTOE_CLASS(klass)	  (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_TICTACTOE, GtkTicTacToeClass))
@@ -31,12 +40,6 @@ G_BEGIN_DECLS
 
 typedef struct _GtkTicTacToe       GtkTicTacToe;
 typedef struct _GtkTicTacToeClass  GtkTicTacToeClass;
-
-typedef enum
-  {
-    GTK_TICTACTOE_MARK_X = 1,
-    GTK_TICTACTOE_MARK_O
-  } GtkTicTacToeMark;
 
 struct _GtkTicTacToe
 {

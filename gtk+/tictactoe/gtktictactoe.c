@@ -18,7 +18,33 @@
 #include <glib-object.h>
 #include <math.h>
 
+#include "gtktictactoe-marshal.h"
 #include "gtktictactoe.h"
+
+enum
+  {
+    MARK_ADDED,
+    LAST_SIGNAL
+  };
+
+static guint gtk_tictactoe_signals[LAST_SIGNAL] = { 0, };
+
+GType
+gtk_tictactoe_mark_get_type()
+{
+  static GType type = 0;
+  static const GEnumValue values[] =
+    {
+      { GTK_TICTACTOE_MARK_X, "GTK_TICTACTOE_MARK_X", "mark-x" },
+      { GTK_TICTACTOE_MARK_O, "GTK_TICTACTOE_MARK_O", "mark-o" },
+      { 0, NULL, NULL }
+    };
+
+  if(type == 0)
+    type = g_enum_register_static ("GtkTicTacToeMark", values);
+
+  return type;
+}
 
 G_DEFINE_TYPE(GtkTicTacToe, gtk_tictactoe, GTK_TYPE_DRAWING_AREA);
 
@@ -99,6 +125,12 @@ on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
 }
 
 static void
+mark_added_cb(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark mark)
+{
+  g_message("Mark added at %dx%d: %d", x, y, (gint)mark);
+}
+
+static void
 gtk_tictactoe_finalize (GObject *object)
 {
   G_OBJECT_CLASS (gtk_tictactoe_parent_class)->finalize (object);
@@ -108,8 +140,21 @@ static void
 gtk_tictactoe_class_init (GtkTicTacToeClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  gtk_tictactoe_signals[MARK_ADDED] = g_signal_new("mark-added",
+                                                   GTK_TYPE_TICTACTOE,
+                                                   G_SIGNAL_RUN_LAST|G_SIGNAL_ACTION,
+                                                   0,
+                                                   NULL,
+                                                   NULL,
+                                                   gtk_tictactoe_marshal_VOID__INT_INT_ENUM,
+                                                   G_TYPE_NONE,
+                                                   3,
+                                                   G_TYPE_INT,
+                                                   G_TYPE_INT,
+                                                   GTK_TYPE_TICTACTOE_MARK);
+
   object_class->finalize = gtk_tictactoe_finalize;
-  g_warning("class init");
 }
 
 static void
@@ -117,6 +162,9 @@ gtk_tictactoe_init (GtkTicTacToe *tictactoe)
 {
   g_signal_connect (G_OBJECT (tictactoe), "expose-event",
                     G_CALLBACK (on_expose), NULL);
+
+  g_signal_connect (G_OBJECT (tictactoe), "mark-added",
+                    G_CALLBACK (mark_added_cb), NULL);
 }
 
 GtkWidget * 
@@ -144,4 +192,6 @@ gtk_tictactoe_mark(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark m
     }
 
   tictactoe->data[x][y] = mark;
+
+  g_signal_emit(tictactoe, gtk_tictactoe_signals[MARK_ADDED], 0, x, y, mark);
 }
