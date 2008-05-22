@@ -68,63 +68,40 @@ str_find(gchar *haystack, gchar needle, gint len)
   return -1;
 }
 
-#define CHUNK_SIZE 256
-static gchar*
-read_line(GFileInputStream *input)
+static void
+parse_line(GkGraph *graph, gchar *line)
 {
-  gchar *line = NULL;
-  gint line_size = 0;
-  gint bytes_read = 0;
-  gchar buffer[256] = { 0 };
-  goffset started_at = g_seekable_tell(G_SEEKABLE(input));
-  GError *error = NULL;
+  glong node, target_node, weight;
+  gchar *endptr = NULL;
 
-  while(bytes_read = g_input_stream_read(G_INPUT_STREAM(input), buffer, 256, NULL, &error))
+  node = strtol(line, &endptr, 10);
+
+  while((*endptr != '\n') && (*endptr != '\0'))
     {
-      gint newline = str_find(buffer, '\n', 256);
-      gint chars_to_append;
-
-      if(error)
+      if(*endptr != ' ')
         {
-          g_warning("Failed to read: %s", error->message);
-          g_error_free(error);
-          break;
+          g_warning("Invalid file format! Expecting ' ', got '%c'!", *endptr);
+          g_free(line);
+          g_object_unref(graph);
+          return;
         }
-
-      if(newline != -1)
-        chars_to_append = newline;
-      else
-        chars_to_append = bytes_read;
-
-      line = g_realloc(line, sizeof(gchar) * (line_size + chars_to_append));
-      memcpy(line + line_size, buffer, chars_to_append);
-      line_size += chars_to_append;
-
-      /* if we reached a new line, we seek back to it, so that the next call
-       * to read_line will be able to get the chars we had read in our last call here
-       */
-      if(newline != -1)
+      endptr++;
+      target_node = strtol(endptr, &endptr, 10);
+      if(*endptr != ';')
         {
-          /* move position in file to be just after the newline for the line we read */
-          g_seekable_seek(G_SEEKABLE(input), started_at + line_size + 1, G_SEEK_SET, NULL, &error);
-          if(error)
-            {
-              g_warning("Failed to read: %s", error->message);
-              g_error_free(error);
-            }
-          break;
+          g_warning("Invalid file format! Expecting ';', got '%c'!", *endptr);
+          g_free(line);
+          g_object_unref(graph);
+          return;
         }
-    }
-  /* make sure the line ends with a NULL char, if we actually have a line */
-  if(line_size)
-    {
-      line = g_realloc(line, sizeof(gchar) * (line_size + 1));
-      line[line_size] = '\0';
-    }
+      endptr++;
+      weight = strtol(endptr, &endptr, 10);
 
-  return line;
+      gk_graph_add_path(graph, node, target_node, weight);
+    }
 }
 
+#define CHUNK_SIZE 256
 GkGraph*
 gk_graph_new_from_g_file(GFile *file)
 {
@@ -133,7 +110,62 @@ gk_graph_new_from_g_file(GFile *file)
   GError *error = NULL;
   gchar *line = NULL;
 
+  graph = g_object_new(GK_TYPE_GRAPH, NULL);
   input = g_file_read(file, NULL, &error);
+
+  {
+    gchar *line = NULL;
+    gint line_size = 0;
+    gint bytes_read = 0;
+    gchar buffer[CHUNK_SIZE] = { 0 };
+    GError *error = NULL;
+
+    while(bytes_read = g_input_stream_read(G_INPUT_STREAM(input), buffer, CHUNK_SIZE, NULL, &error))
+      {
+        gint newline = 0;
+        gchar *ptr = buffer;
+
+        while((newline != -1) && bytes_read)
+          {
+            newline = str_find(ptr, '\n', CHUNK_SIZE);
+            gint chars_to_append;
+
+            if(error)
+              {
+                g_warning("Failed to read: %s", error->message);
+                g_error_free(error);
+                break;
+              }
+
+            if(newline != -1)
+              chars_to_append = newline;
+            else
+              chars_to_append = bytes_read;
+
+            line = g_realloc(line, sizeof(gchar) * (line_size + chars_to_append));
+            memcpy(line + line_size, ptr, chars_to_append);
+            line_size += chars_to_append;
+
+            if(newline != -1)
+              {
+                /* make sure the line ends with a NULL char, if we actually have a line */
+                if(line_size)
+                  {
+                    line = g_realloc(line, sizeof(gchar) * (line_size + 1));
+                    line[line_size] = '\0';
+                    parse_line(graph, line);
+                  }
+                g_free(line);
+                line = NULL;
+                line_size = 0;
+              }
+
+            ptr += chars_to_append + 1;
+            bytes_read -= chars_to_append;
+          }
+      }
+  }
+
   if(error)
     {
       g_warning("Could not open file %s: %s", g_file_get_uri(file), error->message);
@@ -141,40 +173,6 @@ gk_graph_new_from_g_file(GFile *file)
       return NULL;
     }
 
-  graph = g_object_new(GK_TYPE_GRAPH, NULL);
-  while(line = read_line(input))
-    {
-      glong node, target_node, weight;
-      gchar *endptr = NULL;
-
-      node = strtol(line, &endptr, 10);
-
-      while((*endptr != '\n') && (*endptr != '\0'))
-        {
-          if(*endptr != ' ')
-            {
-              g_warning("Invalid file format! Expecting ' ', got '%c'!", *endptr);
-              g_free(line);
-              g_object_unref(graph);
-              return NULL;
-            }
-          endptr++;
-          target_node = strtol(endptr, &endptr, 10);
-          if(*endptr != ';')
-            {
-              g_warning("Invalid file format! Expecting ';', got '%c'!", *endptr);
-              g_free(line);
-              g_object_unref(graph);
-              return NULL;
-            }
-          endptr++;
-          weight = strtol(endptr, &endptr, 10);
-
-          gk_graph_add_path(graph, node, target_node, weight);
-        }
-
-      g_free(line);
-    }
 
   return graph;
 }
