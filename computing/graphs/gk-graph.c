@@ -108,63 +108,61 @@ gk_graph_new_from_g_file(GFile *file)
   GkGraph *graph;
   GFileInputStream *input;
   GError *error = NULL;
+
   gchar *line = NULL;
+  gint line_size = 0;
+  gint bytes_read = 0;
+  gchar buffer[CHUNK_SIZE] = { 0 };
 
   graph = g_object_new(GK_TYPE_GRAPH, NULL);
   input = g_file_read(file, NULL, &error);
 
-  {
-    gchar *line = NULL;
-    gint line_size = 0;
-    gint bytes_read = 0;
-    gchar buffer[CHUNK_SIZE] = { 0 };
-    GError *error = NULL;
 
-    while(bytes_read = g_input_stream_read(G_INPUT_STREAM(input), buffer, CHUNK_SIZE, NULL, &error))
-      {
-        gint newline = 0;
-        gchar *ptr = buffer;
+  while(bytes_read = g_input_stream_read(G_INPUT_STREAM(input), buffer, CHUNK_SIZE, NULL, &error))
+    {
+      gint newline = 0;
+      gchar *ptr = buffer;
 
-        while((newline != -1) && bytes_read)
-          {
-            newline = str_find(ptr, '\n', CHUNK_SIZE);
-            gint chars_to_append;
+      while((newline != -1) && bytes_read)
+        {
+          newline = str_find(ptr, '\n', CHUNK_SIZE);
+          gint chars_to_append;
 
-            if(error)
-              {
-                g_warning("Failed to read: %s", error->message);
-                g_error_free(error);
-                break;
-              }
+          if(error)
+            {
+              g_warning("Failed to read: %s", error->message);
+              g_error_free(error);
+              break;
+            }
 
-            if(newline != -1)
-              chars_to_append = newline;
-            else
-              chars_to_append = bytes_read;
+          if(newline != -1)
+            chars_to_append = newline;
+          else
+            chars_to_append = bytes_read;
 
-            line = g_realloc(line, sizeof(gchar) * (line_size + chars_to_append));
-            memcpy(line + line_size, ptr, chars_to_append);
-            line_size += chars_to_append;
+          line = g_realloc(line, sizeof(gchar) * (line_size + chars_to_append));
+          memcpy(line + line_size, ptr, chars_to_append);
+          line_size += chars_to_append;
 
-            if(newline != -1)
-              {
-                /* make sure the line ends with a NULL char, if we actually have a line */
-                if(line_size)
-                  {
-                    line = g_realloc(line, sizeof(gchar) * (line_size + 1));
-                    line[line_size] = '\0';
-                    parse_line(graph, line);
-                  }
-                g_free(line);
-                line = NULL;
-                line_size = 0;
-              }
+          if(newline != -1)
+            {
+              /* make sure the line ends with a NULL char, if we actually have a line */
+              if(line_size)
+                {
+                  line = g_realloc(line, sizeof(gchar) * (line_size + 1));
+                  line[line_size] = '\0';
+                  parse_line(graph, line);
+                }
+              g_free(line);
+              line = NULL;
+              line_size = 0;
+            }
 
-            ptr += chars_to_append + 1;
-            bytes_read -= chars_to_append;
-          }
-      }
-  }
+          ptr += chars_to_append + 1;
+          bytes_read -= chars_to_append;
+        }
+    }
+
 
   if(error)
     {
