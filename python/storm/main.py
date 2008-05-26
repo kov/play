@@ -25,5 +25,9 @@ class Person(object):
 database = create_database('sqlite:db')
 store = Store(database)
 
-store.execute('create table person (id integer primary key, name varchar)', noresult = True)
+try:
+    store.execute('create table person (id integer primary key, name varchar)', noresult = True)
+except:
+    pass
 
+store.commit()
