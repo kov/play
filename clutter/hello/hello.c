@@ -15,14 +15,17 @@
  */
 
 #include <gtk/gtk.h>
+#include <gdk/gdkkeysyms.h>
 #include <clutter/clutter.h>
 #include <clutter-gtk/gtk-clutter-embed.h>
 
-#define STAGE_WIDTH 200
-#define STAGE_HEIGHT 200
+gint stage_width;
+gint stage_height;
 
 gboolean going_down;
 gboolean going_right;
+
+gboolean is_fullscreen;
 
 void
 on_timeline_new_frame(ClutterTimeline *timeline,
@@ -36,8 +39,8 @@ on_timeline_new_frame(ClutterTimeline *timeline,
   clutter_actor_get_position(label_actor, &x, &y);
   clutter_actor_get_size(label_actor, &actor_width, &actor_height);
 
-  stage_rel_width = STAGE_WIDTH - actor_width;
-  stage_rel_height = STAGE_HEIGHT - actor_height;
+  stage_rel_width = stage_width - actor_width;
+  stage_rel_height = stage_height - actor_height;
 
   if(x == 0)
     going_right = TRUE;
@@ -62,6 +65,35 @@ on_timeline_new_frame(ClutterTimeline *timeline,
   clutter_actor_set_position(label_actor, x, y);
 }
 
+gboolean
+fullscreen_toggled_cb(GtkWidget *window,
+                      GdkEventKey *event,
+                      gpointer user_data)
+{
+  if(event->keyval == GDK_f)
+    {
+      GtkWidget *stage = GTK_WIDGET(user_data);
+      ClutterActor *stage_actor = gtk_clutter_embed_get_stage(GTK_CLUTTER_EMBED(stage));
+
+      if(is_fullscreen)
+        gtk_window_unfullscreen(GTK_WINDOW(window));
+      else
+        gtk_window_fullscreen(GTK_WINDOW(window));
+
+      while(gtk_events_pending())
+        gtk_main_iteration();
+
+      gtk_window_get_size(GTK_WINDOW(window),
+                          &stage_width,
+                          &stage_height);
+
+      is_fullscreen = !is_fullscreen;
+
+      return TRUE;
+    }
+  return FALSE;
+}
+
 int main(int argc, char **argv)
 {
   GtkWidget *window;
@@ -72,7 +104,9 @@ int main(int argc, char **argv)
   ClutterColor label_color = { 0xff, 0xff, 0xff, 0xff };
   ClutterTimeline *timeline;
 
+  stage_width = stage_height = 200;
   going_down = going_right = TRUE;
+  is_fullscreen = FALSE;
   
   clutter_init(&argc, &argv);
   gtk_init(&argc, &argv);
@@ -82,10 +116,11 @@ int main(int argc, char **argv)
                    G_CALLBACK(gtk_main_quit), NULL);
 
   stage = gtk_clutter_embed_new();
-  gtk_widget_set_size_request(stage, STAGE_WIDTH, STAGE_HEIGHT);
+  gtk_widget_set_size_request(stage, stage_width, stage_height);
   gtk_container_add(GTK_CONTAINER(window), stage);
 
   stage_actor = gtk_clutter_embed_get_stage(GTK_CLUTTER_EMBED(stage));
+  clutter_stage_set_key_focus(CLUTTER_STAGE(stage_actor), NULL);
   clutter_stage_set_color(CLUTTER_STAGE(stage_actor), &stage_color);
   
   label_actor = clutter_label_new_full("Bitstream Vera Sans",
@@ -93,6 +128,9 @@ int main(int argc, char **argv)
                                        &label_color);
   clutter_container_add_actor(CLUTTER_CONTAINER(stage_actor), label_actor);
   clutter_actor_show(label_actor);
+
+  g_signal_connect(G_OBJECT(window), "key-press-event",
+                   G_CALLBACK(fullscreen_toggled_cb), (gpointer)stage);
 
   gtk_widget_show_all(window);
 
