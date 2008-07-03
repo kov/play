@@ -51,7 +51,7 @@ on_timeline_new_frame(ClutterTimeline *timeline,
   stage_rel_width = stage_width - actor_width;
   stage_rel_height = stage_height - actor_height;
 
-  xscale = (stage_width / ORIGINAL_WIDTH) + (stage_width % ORIGINAL_WIDTH);
+  xscale = ((1.0 * stage_width)  / ORIGINAL_WIDTH);
   yscale = ((1.0 * stage_height) / ORIGINAL_HEIGHT);
 
   clutter_actor_set_scale(label_actor, xscale, yscale);
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
   clutter_stage_set_color(CLUTTER_STAGE(stage_actor), &stage_color);
   
   label_actor = clutter_label_new_full("Bitstream Vera Sans",
-                                       "Hello World!",
+                                       "Lu, te amo! =*",
                                        &label_color);
   clutter_container_add_actor(CLUTTER_CONTAINER(stage_actor), label_actor);
   clutter_actor_show(label_actor);
