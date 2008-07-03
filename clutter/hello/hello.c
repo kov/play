@@ -19,8 +19,10 @@
 #include <clutter/clutter.h>
 #include <clutter-gtk/gtk-clutter-embed.h>
 
-gint stage_width;
-gint stage_height;
+#define ORIGINAL_WIDTH 640
+#define ORIGINAL_HEIGHT 480
+
+GtkWidget *window;
 
 gboolean going_down;
 gboolean going_right;
@@ -34,23 +36,45 @@ on_timeline_new_frame(ClutterTimeline *timeline,
 {
   ClutterActor *label_actor = CLUTTER_ACTOR(data);
   gint x, y, actor_width, actor_height;
+  gint stage_width;
+  gint stage_height;
   gint stage_rel_width, stage_rel_height;
+  gdouble xscale, yscale;
 
   clutter_actor_get_position(label_actor, &x, &y);
-  clutter_actor_get_size(label_actor, &actor_width, &actor_height);
+  clutter_actor_get_abs_size(label_actor, &actor_width, &actor_height);
+
+  gtk_window_get_size(GTK_WINDOW(window),
+                      &stage_width,
+                      &stage_height);
 
   stage_rel_width = stage_width - actor_width;
   stage_rel_height = stage_height - actor_height;
+
+  xscale = (stage_width / ORIGINAL_WIDTH) + (stage_width % ORIGINAL_WIDTH);
+  yscale = ((1.0 * stage_height) / ORIGINAL_HEIGHT);
+
+  clutter_actor_set_scale(label_actor, xscale, yscale);
 
   if(x == 0)
     going_right = TRUE;
   else if(x == stage_rel_width)
     going_right = FALSE;
+  else if(x > stage_rel_width)
+    {
+      going_right = FALSE;
+      x = stage_rel_width + 1;
+    }
 
   if(y == 0)
     going_down = TRUE;
   else if(y == stage_rel_height)
     going_down = FALSE;
+  else if(y > stage_rel_height)
+    {
+      going_down = FALSE;
+      y = stage_rel_height + 1;
+    }
 
   if(going_down)
     y += 1;
@@ -83,10 +107,6 @@ fullscreen_toggled_cb(GtkWidget *window,
       while(gtk_events_pending())
         gtk_main_iteration();
 
-      gtk_window_get_size(GTK_WINDOW(window),
-                          &stage_width,
-                          &stage_height);
-
       is_fullscreen = !is_fullscreen;
 
       return TRUE;
@@ -96,7 +116,6 @@ fullscreen_toggled_cb(GtkWidget *window,
 
 int main(int argc, char **argv)
 {
-  GtkWidget *window;
   GtkWidget *stage;
   ClutterActor *stage_actor;
   ClutterActor *label_actor;
@@ -104,7 +123,6 @@ int main(int argc, char **argv)
   ClutterColor label_color = { 0xff, 0xff, 0xff, 0xff };
   ClutterTimeline *timeline;
 
-  stage_width = stage_height = 200;
   going_down = going_right = TRUE;
   is_fullscreen = FALSE;
   
@@ -116,7 +134,7 @@ int main(int argc, char **argv)
                    G_CALLBACK(gtk_main_quit), NULL);
 
   stage = gtk_clutter_embed_new();
-  gtk_widget_set_size_request(stage, stage_width, stage_height);
+  gtk_widget_set_size_request(stage, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
   gtk_container_add(GTK_CONTAINER(window), stage);
 
   stage_actor = gtk_clutter_embed_get_stage(GTK_CLUTTER_EMBED(stage));
