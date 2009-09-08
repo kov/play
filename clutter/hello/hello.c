@@ -42,7 +42,7 @@ on_timeline_new_frame(ClutterTimeline *timeline,
   gdouble xscale, yscale;
 
   clutter_actor_get_position(label_actor, &x, &y);
-  clutter_actor_get_abs_size(label_actor, &actor_width, &actor_height);
+  clutter_actor_get_transformed_size(label_actor, &actor_width, &actor_height);
 
   gtk_window_get_size(GTK_WINDOW(window),
                       &stage_width,
