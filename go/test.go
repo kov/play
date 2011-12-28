@@ -2,23 +2,23 @@ package main
 
 import "fmt"
 
-type MeuPau struct {
+type MeuPapagaio struct {
      tamanho int
 }
 
-func seucu() {
+func seuouvido() {
      fmt.Printf("lalala\n")
 }
 
 func main() {
-        s := "meu pau";
+        s := "meu papagaio";
         var p *string = &s;
-        *p = "se fode";
+        *p = "se ame";
 	fmt.Printf("Hello World! %s - %s\n", s, *p);
 
-        mp := new(MeuPau);
+        mp := new(MeuPapagaio);
         mp.tamanho = 10;
         fmt.Printf("Tamanho: %d\n", mp.tamanho);
 
-        seucu();
+        seuouvido();
 }
