@@ -1,0 +1,15 @@
+#!/bin/bash
+
+bold=$(tput bold)
+red=$(tput setaf 1)
+blue=$(tput setaf 4)
+normal=$(echo -e '\033[0m')
+
+cut -d ' ' -f 2- $1 | \
+    fmt -w 120 -s | \
+    grep -v ' -!- ' | \
+    sed "s,\(^[a-zA-Z]\),                 \1,g" |\
+    sed "s, > kov:, ${bold}${red}<kov> ${normal},g" | \
+    sed "s,< \([^!]\+\)![^:]\+:,${bold}<\1>${normal},g" | \
+    sed "s,< \* \([^!]\+\)![^ ]\+ ,${bold}${blue}* \1 ${normal},g" | \
+    less -R
