@@ -20,10 +20,49 @@
 #include <libsoup/soup.h>
 #include <libsoup/soup-requester.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-
+GMainLoop* loop;
 SoupSession* session;
 SoupRequester* requester;
+char* buffer;
+
+void async_read_cb(GObject* source, GAsyncResult* res, gpointer data)
+{
+    GInputStream* stream = G_INPUT_STREAM(source);
+    GError* error = NULL;
+    gssize nread = g_input_stream_read_finish(stream, res, &error);
+
+    if (error) {
+        g_warning("Reading failed: %s", error->message);
+        g_clear_error(&error);
+        return;
+    }
+
+    if (!nread) {
+        g_main_loop_quit(loop);
+        return;
+    }
+
+    write(1, buffer, nread);
+
+    g_input_stream_read_async(stream, buffer, 4096, G_PRIORITY_DEFAULT, NULL, async_read_cb, NULL);
+}
+
+void async_send_cb(GObject* source, GAsyncResult* res, gpointer data)
+{
+    SoupRequest* request = SOUP_REQUEST(source);
+    GError* error = NULL;
+    GInputStream* stream = soup_request_send_finish(request, res, &error);
+    if (error) {
+        g_warning("Requesting uri failed", error->message);
+        g_object_unref(request);
+        g_clear_error(&error);
+        return;
+    }
+
+    g_input_stream_read_async(stream, buffer, 4096, G_PRIORITY_DEFAULT, NULL, async_read_cb, NULL);
+}
 
 void gk_get_file(const char* uri)
 {
@@ -36,50 +75,25 @@ void gk_get_file(const char* uri)
         return;
     }
 
-    GInputStream* istream = soup_request_send(request, NULL, &error);
-    if (error) {
-        g_warning("Requesting uri `%s' failed: %s", uri, error->message);
-        g_object_unref(request);
-        g_clear_error(&error);
-        return;
-    }
-
-    char* buffer = g_malloc(1024);
-    gsize bytes_read = -1;
-    do {
-        g_input_stream_read_all(istream,
-                                buffer,
-                                1024,
-                                &bytes_read,
-                                NULL,
-                                &error);
-
-        if (error) {
-            g_warning("Error reading from file `%s': %s", uri, error->message);
-            g_clear_error(&error);
-            g_free(buffer);
-            g_object_unref(istream);
-            return;
-        }
-
-        fwrite(buffer, 1, bytes_read, stdout);
-    } while (bytes_read != 0);
-
-    g_free(buffer);
-    g_object_unref(istream);
+    soup_request_send_async(request, NULL, async_send_cb, NULL);
 }
 
 int main(int argc, char** argv)
 {
     g_type_init();
 
+    buffer = (char*)malloc(4096);
+
     session = soup_session_async_new();
 
     requester = soup_requester_new();
     soup_session_add_feature(session, SOUP_SESSION_FEATURE(requester));
 
-    for (int i = 1; i < argc; i++)
-        gk_get_file(argv[i]);
+    loop = g_main_loop_new(NULL, TRUE);
+
+    gk_get_file(argv[1]);
+
+    g_main_loop_run(loop);
 
     return 0;
 }
