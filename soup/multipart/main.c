@@ -37,6 +37,7 @@ update_image(SoupMultipartInputStream* multipart)
     gtk_image_set_from_pixbuf(image, pixbuf);
 
     g_object_unref(loader);
+    loader = NULL;
 }
 
 static void
@@ -62,9 +63,6 @@ read_cb (GObject* source, GAsyncResult* res, gpointer data)
         SoupMultipartInputStream* multipart = SOUP_MULTIPART_INPUT_STREAM(data);
 
         update_image(multipart);
-
-        g_object_unref(loader);
-        loader = NULL;
 
         soup_multipart_input_stream_next_part_async(multipart, G_PRIORITY_DEFAULT, NULL, next_part_cb, NULL);
         return;
