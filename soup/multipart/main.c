@@ -121,7 +121,7 @@ int main(int argc, char** argv)
     builder = gtk_builder_new();
     gtk_builder_add_from_file(builder, "mjpeg-viewer.ui", NULL);
 
-    SoupSession* session = soup_session_async_new();
+    SoupSession* session = soup_session_async_new_with_options("use-thread-context", TRUE, NULL);
     soup_session_add_feature_by_type(session, SOUP_TYPE_REQUESTER);
 
     SoupRequester* requester = SOUP_REQUESTER(soup_session_get_feature(session, SOUP_TYPE_REQUESTER));
