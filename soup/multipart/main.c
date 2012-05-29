@@ -22,9 +22,6 @@ static void request_sent_cb (GObject* source, GAsyncResult* res, gpointer data);
 static void
 update_image(SoupMultipartInputStream* multipart)
 {
-    GtkWindow* main_window = GTK_WINDOW(gtk_builder_get_object(builder, "main_window"));
-    gtk_window_present(main_window);
-
     GError* error = NULL;
     gdk_pixbuf_loader_close(loader, &error);
     if (error) {
@@ -120,6 +117,9 @@ int main(int argc, char** argv)
 
     builder = gtk_builder_new();
     gtk_builder_add_from_file(builder, "mjpeg-viewer.ui", NULL);
+
+    GtkWidget* main_window = GTK_WIDGET(gtk_builder_get_object(builder, "main_window"));
+    gtk_widget_show(main_window);
 
     SoupSession* session = soup_session_async_new_with_options("use-thread-context", TRUE, NULL);
     soup_session_add_feature_by_type(session, SOUP_TYPE_REQUESTER);
