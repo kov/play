@@ -50,27 +50,18 @@ gtk_tictactoe_mark_get_type()
 G_DEFINE_TYPE(GtkTicTacToe, gtk_tictactoe, GTK_TYPE_DRAWING_AREA);
 
 static void
-on_realize_cb(GtkWidget *tictactoe)
+on_draw (GtkDrawingArea* drawing_area, cairo_t* cairo_context, int width, int height, gpointer data)
 {
-  gtk_widget_add_events(GTK_WIDGET(tictactoe), GDK_BUTTON_PRESS_MASK|GDK_BUTTON_RELEASE_MASK);
-}
-
-static gboolean
-on_draw (GtkWidget* widget, cairo_t* cairo_context, gpointer data)
-{
-  GtkTicTacToe *tictactoe = GTK_TICTACTOE(widget);
-  GtkAllocation allocation;
+  GtkTicTacToe *tictactoe = GTK_TICTACTOE(drawing_area);
   int i, j;
 
-  gtk_widget_get_allocation(widget, &allocation);
-
   g_message("Allocation: %f x %f",
-            (gdouble)allocation.width,
-            (gdouble)allocation.height);
+            (gdouble)width,
+            (gdouble)height);
 
   cairo_scale(cairo_context,
-              (gdouble)allocation.width,
-              (gdouble)allocation.height);
+              (gdouble)width,
+              (gdouble)height);
 
   cairo_set_source_rgb(cairo_context, 1.0, 1.0, 1.0);
   cairo_rectangle (cairo_context, 0.0, 0.0, 1.0, 1.0);
@@ -129,8 +120,6 @@ on_draw (GtkWidget* widget, cairo_t* cairo_context, gpointer data)
             }
         }
     }
-
-  return FALSE;
 }
 
 static void
@@ -176,44 +165,39 @@ mark_added_cb(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark mark)
     g_signal_emit(tictactoe, gtk_tictactoe_signals[VICTORY_REACHED], 0, mark);
 }
 
-gboolean
-on_button_release_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
+void
+on_button_pressed_cb(GtkGesture *gesture, int n_press, double x, double y, GtkWidget *widget)
 {
   GtkTicTacToe *tictactoe = GTK_TICTACTOE(widget);
   gdouble width, height;
-  gdouble x, y;
-  if(gdk_event_get_coords((GdkEvent*)event, &x, &y))
-    {
-      GtkAllocation allocation;
-      gdouble relative_x, relative_y;
-      guint coord_x, coord_y;
+  GtkAllocation allocation;
+  gdouble relative_x, relative_y;
+  guint coord_x, coord_y;
 
-      gtk_widget_get_allocation(widget, &allocation);
+  gtk_widget_get_allocation(widget, &allocation);
 
-      width = (gdouble)allocation.width;
-      height = (gdouble)allocation.height;
+  width = (gdouble)allocation.width;
+  height = (gdouble)allocation.height;
 
-      relative_x = x / width;
-      relative_y = y / height;
+  relative_x = x / width;
+  relative_y = y / height;
 
-      if(relative_x <= 0.35)
-        coord_x = 0;
-      else if((relative_x > 0.35) && (relative_x <= 0.65))
-        coord_x = 1;
-      else
-        coord_x = 2;
+  if(relative_x <= 0.35)
+    coord_x = 0;
+  else if((relative_x > 0.35) && (relative_x <= 0.65))
+    coord_x = 1;
+  else
+    coord_x = 2;
 
-      if(relative_y <= 0.35)
-        coord_y = 0;
-      else if((relative_y > 0.35) && (relative_y <= 0.65))
-        coord_y = 1;
-      else
-        coord_y = 2;
+  if(relative_y <= 0.35)
+    coord_y = 0;
+  else if((relative_y > 0.35) && (relative_y <= 0.65))
+    coord_y = 1;
+  else
+    coord_y = 2;
 
-      g_message("Click at %dx%d", coord_x, coord_y);
-      gtk_tictactoe_mark(tictactoe, coord_x, coord_y, tictactoe->current_mark);
-    }
-  return FALSE;
+  g_message("Click at %dx%d", coord_x, coord_y);
+  gtk_tictactoe_mark(tictactoe, coord_x, coord_y, tictactoe->current_mark);
 }
 
 static void
@@ -257,16 +241,15 @@ gtk_tictactoe_class_init (GtkTicTacToeClass *klass)
 static void
 gtk_tictactoe_init (GtkTicTacToe *tictactoe)
 {
+  GtkGesture *gesture;
+
   tictactoe->current_mark = GTK_TICTACTOE_MARK_X;
 
-  g_signal_connect(G_OBJECT(tictactoe), "draw",
-                   G_CALLBACK(on_draw), NULL);
+  gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(tictactoe), on_draw, NULL, NULL);
 
-  g_signal_connect(G_OBJECT(tictactoe), "realize",
-                   G_CALLBACK(on_realize_cb), NULL);
-
-  g_signal_connect(G_OBJECT(tictactoe), "button-release-event",
-                   G_CALLBACK(on_button_release_cb), NULL);
+  gesture = gtk_gesture_multi_press_new();
+  g_signal_connect(gesture, "pressed", G_CALLBACK(on_button_pressed_cb), tictactoe);
+  gtk_widget_add_controller(GTK_WIDGET(tictactoe), GTK_EVENT_CONTROLLER(gesture));
 
   g_signal_connect(G_OBJECT(tictactoe), "mark-added",
                    G_CALLBACK(mark_added_cb), NULL);

@@ -21,8 +21,11 @@ void
 victory_reached_cb(GtkWidget *tictactoe, GtkTicTacToeMark mark)
 {
   GtkWidget *dialog;
+  GtkWindow *parent;
 
-  dialog = gtk_message_dialog_new_with_markup(NULL,
+  parent = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(tictactoe)));
+
+  dialog = gtk_message_dialog_new_with_markup(parent,
                                               GTK_DIALOG_MODAL,
                                               GTK_MESSAGE_INFO,
                                               GTK_BUTTONS_CLOSE,
@@ -36,10 +39,10 @@ int  main(int argc, char **argv)
   GtkWidget *window;
   GtkWidget *tictactoe;
 
-  gtk_init(&argc, &argv);
+  gtk_init();
   
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  g_signal_connect(G_OBJECT(window), "delete_event",
+  g_signal_connect(G_OBJECT(window), "close-request",
                    G_CALLBACK(gtk_main_quit), NULL);
   gtk_window_set_default_size(GTK_WINDOW(window), 200, 200);
 
@@ -58,8 +61,8 @@ int  main(int argc, char **argv)
 /*   gtk_tictactoe_mark(GTK_TICTACTOE(tictactoe), 2, 2, GTK_TICTACTOE_MARK_X); */
 
   gtk_container_add(GTK_CONTAINER(window), tictactoe);
+  gtk_widget_show(window);
 
-  gtk_widget_show_all(window);
   gtk_main();
 
   return 0;

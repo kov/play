@@ -10,5 +10,5 @@ executable('tictactoe',
     marshal_files,
     'gtktictactoe.c',
     'main.c',
-     dependencies: dependency('gtk+-3.0')
+     dependencies: dependency('gtk+-4.0')
 )
