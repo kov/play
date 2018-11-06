@@ -56,19 +56,21 @@ on_realize_cb(GtkWidget *tictactoe)
 }
 
 static gboolean
-on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
+on_draw (GtkWidget* widget, cairo_t* cairo_context, gpointer data)
 {
   GtkTicTacToe *tictactoe = GTK_TICTACTOE(widget);
-  cairo_t  *cairo_context = gdk_cairo_create(widget->window);
+  GtkAllocation allocation;
   int i, j;
 
+  gtk_widget_get_allocation(widget, &allocation);
+
   g_message("Allocation: %f x %f",
-            (gdouble)widget->allocation.width,
-            (gdouble)widget->allocation.height);
+            (gdouble)allocation.width,
+            (gdouble)allocation.height);
 
   cairo_scale(cairo_context,
-              (gdouble)widget->allocation.width,
-              (gdouble)widget->allocation.height);
+              (gdouble)allocation.width,
+              (gdouble)allocation.height);
 
   cairo_set_source_rgb(cairo_context, 1.0, 1.0, 1.0);
   cairo_rectangle (cairo_context, 0.0, 0.0, 1.0, 1.0);
@@ -128,8 +130,6 @@ on_expose (GtkWidget* widget, GdkEventExpose* pEvent, gpointer data)
         }
     }
 
-  cairo_destroy(cairo_context);
-
   return FALSE;
 }
 
@@ -137,7 +137,6 @@ static void
 mark_added_cb(GtkTicTacToe *tictactoe, guint x, guint y, GtkTicTacToeMark mark)
 {
   gboolean victory = FALSE;
-  gint count = 0;
 
   g_message("Mark added at %dx%d: %d", x, y, (gint)mark);
   
@@ -185,11 +184,14 @@ on_button_release_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
   gdouble x, y;
   if(gdk_event_get_coords((GdkEvent*)event, &x, &y))
     {
+      GtkAllocation allocation;
       gdouble relative_x, relative_y;
       guint coord_x, coord_y;
 
-      width = (gdouble)widget->allocation.width;
-      height = (gdouble)widget->allocation.height;
+      gtk_widget_get_allocation(widget, &allocation);
+
+      width = (gdouble)allocation.width;
+      height = (gdouble)allocation.height;
 
       relative_x = x / width;
       relative_y = y / height;
@@ -257,8 +259,8 @@ gtk_tictactoe_init (GtkTicTacToe *tictactoe)
 {
   tictactoe->current_mark = GTK_TICTACTOE_MARK_X;
 
-  g_signal_connect(G_OBJECT(tictactoe), "expose-event",
-                   G_CALLBACK(on_expose), NULL);
+  g_signal_connect(G_OBJECT(tictactoe), "draw",
+                   G_CALLBACK(on_draw), NULL);
 
   g_signal_connect(G_OBJECT(tictactoe), "realize",
                    G_CALLBACK(on_realize_cb), NULL);
