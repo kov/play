@@ -5,3 +5,5 @@
 build
 selenium/config.py
 .buildconfig
+gl/test
+dmabuf/main
