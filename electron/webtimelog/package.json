@@ -1,0 +1,17 @@
+{
+  "name": "webtimelog",
+  "version": "1.0.0",
+  "description": "A web version of gtimelog",
+  "main": "index.js",
+  "scripts": {
+    "test": "test",
+    "start": "electron ."
+  },
+  "author": "Gustavo Noronha Silva <gustavo.noronha@collabora.com>",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "electron": "^2.0.8",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.5"
+  }
+}

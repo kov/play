@@ -1,0 +1,16 @@
+{
+  "name": "stocks",
+  "version": "1.0.0",
+  "description": "Keep track of your stocks",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  },
+  "author": "Gustavo Noronha Silva <gustavo.noronha@collabora.com>",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "electron": "^2.0.7",
+    "request": "^2.88.0"
+  }
+}

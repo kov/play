@@ -7,3 +7,4 @@ selenium/config.py
 .buildconfig
 gl/test
 dmabuf/main
+node_modules
