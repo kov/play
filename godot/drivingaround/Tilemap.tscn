@@ -1,0 +1,31 @@
+[gd_scene load_steps=2 format=2]
+
+[ext_resource path="res://roads.png" type="Texture" id=1]
+
+[node name="Node" type="Node" index="0"]
+
+[node name="Crossroads" type="Sprite" parent="." index="0"]
+
+position = Vector2( 50, 50 )
+texture = ExtResource( 1 )
+region_enabled = true
+region_rect = Rect2( 0, 0, 100, 100 )
+_sections_unfolded = [ "Region" ]
+
+[node name="VRoad" type="Sprite" parent="." index="1"]
+
+position = Vector2( 170, 50 )
+texture = ExtResource( 1 )
+region_enabled = true
+region_rect = Rect2( 0, 100, 100, 100 )
+_sections_unfolded = [ "Region" ]
+
+[node name="HRoad" type="Sprite" parent="." index="2"]
+
+position = Vector2( 290, 50 )
+texture = ExtResource( 1 )
+region_enabled = true
+region_rect = Rect2( 100, 0, 100, 100 )
+_sections_unfolded = [ "Region" ]
+
+
