@@ -8,3 +8,4 @@ selenium/config.py
 gl/test
 dmabuf/main
 node_modules
+target/

@@ -1,0 +1,6 @@
+[package]
+name = "largest"
+version = "0.1.0"
+authors = ["Gustavo Noronha Silva <gustavo.noronha@collabora.com>"]
+
+[dependencies]
