@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use dashmap::DashMap;
 use rand::Rng;
 use spmc;
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak};
 
 type Receiver<T> = Arc<spmc::Receiver<T>>;
 
@@ -40,13 +40,13 @@ impl<T: Clone + Send> Bus<T> {
 unsafe impl<T: Send> Sync for Bus<T> {}
 
 struct JobManager {
-    map: Mutex<HashMap<String, Bus<String>>>,
+    map: DashMap<String, Bus<String>>,
 }
 
 impl JobManager {
     fn new() -> Arc<Self> {
         Arc::new(JobManager {
-            map: Mutex::new(HashMap::<String, Bus<String>>::new()),
+            map: DashMap::<String, Bus<String>>::new(),
         })
     }
 
@@ -62,10 +62,8 @@ impl JobManager {
 
         // We are done with the work, and thus won't need this bus on the map
         // anymore. Remove it, and broadcast the result to all the receivers.
-        self.map.lock().map(|mut map| {
-            let mut bus = map.remove(&s).unwrap();
-            bus.broadcast(s.to_uppercase());
-        }).unwrap();
+        let (_, mut bus) = self.map.remove(&s).unwrap();
+        bus.broadcast(s.to_uppercase());
     }
 
     fn subscribe_to(manager: Arc<Self>, s: String) -> String {
@@ -74,8 +72,7 @@ impl JobManager {
         // map and returns it.
         let ts = s.clone();
         let tmanager = manager.clone();
-        let mut map = manager.map.lock().unwrap();
-        let bus = map.entry(s.clone())
+        let mut bus = manager.map.entry(s.clone())
             .or_insert_with(|| {
                 std::thread::spawn(move || {
                     tmanager.do_work(s);
@@ -93,7 +90,6 @@ impl JobManager {
         // to block on the recv() call below, and would be effectively holding
         // a lock on the map, leading to a deadlock.
         drop(bus);
-        drop(map);
 
         std::thread::sleep(std::time::Duration::from_secs(6));
 
