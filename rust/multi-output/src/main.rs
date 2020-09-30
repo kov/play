@@ -1,15 +1,52 @@
-use bus::Bus;
-use dashmap::DashMap;
-use std::sync::Arc;
+use std::collections::HashMap;
+use rand::Rng;
+use spmc;
+use std::sync::{Arc, Weak, Mutex};
+
+type Receiver<T> = Arc<spmc::Receiver<T>>;
+
+struct Bus<T: Send + 'static> {
+    sender: spmc::Sender<T>,
+    receiver: spmc::Receiver<T>,
+    weak_receivers: Vec<Weak<spmc::Receiver<T>>>,
+}
+
+impl<T: Clone + Send> Bus<T> {
+    fn new() -> Self {
+        let (sender, receiver) = spmc::channel();
+        Bus {
+            sender,
+            receiver,
+            weak_receivers: Vec::<Weak<spmc::Receiver<T>>>::new(),
+        }
+    }
+
+    fn add_receiver(&mut self) -> Receiver<T> {
+        let receiver = Arc::new(self.receiver.clone());
+        self.weak_receivers.push(Arc::downgrade(&receiver));
+        receiver
+    }
+
+    fn broadcast(&mut self, msg: T) {
+        let sender = &mut self.sender;
+        for receiver in &self.weak_receivers {
+            if receiver.strong_count() > 0 {
+                sender.send(msg.clone()).unwrap();
+            }
+        }
+    }
+}
+
+unsafe impl<T: Send> Sync for Bus<T> {}
 
 struct JobManager {
-    map: DashMap<String, Bus<String>>,
+    map: Mutex<HashMap<String, Bus<String>>>,
 }
 
 impl JobManager {
     fn new() -> Arc<Self> {
         Arc::new(JobManager {
-            map: DashMap::<String, Bus<String>>::new(),
+            map: Mutex::new(HashMap::<String, Bus<String>>::new()),
         })
     }
 
@@ -20,35 +57,45 @@ impl JobManager {
         match s.as_str() {
             "metl3" => (),
             "pblt3" => std::thread::sleep(std::time::Duration::from_secs(8)),
-            _ => std::thread::sleep(std::time::Duration::from_secs(5)),
+            _ => { let mut rng = rand::thread_rng(); rng.gen_range(0, 10); },
         }
 
         // We are done with the work, and thus won't need this bus on the map
         // anymore. Remove it, and broadcast the result to all the receivers.
-        let (_, mut bus) = self.map.remove(&s).unwrap();
-        bus.broadcast(s.to_uppercase());
+        self.map.lock().map(|mut map| {
+            let mut bus = map.remove(&s).unwrap();
+            bus.broadcast(s.to_uppercase());
+        }).unwrap();
     }
 
     fn subscribe_to(manager: Arc<Self>, s: String) -> String {
         // This gets the Bus from the map if it has already been inserted,
         // otherwise calls the do_work function and inserts a new Bus on the
         // map and returns it.
+        let ts = s.clone();
         let tmanager = manager.clone();
-        let mut bus = manager.map.entry(s.clone())
+        let mut map = manager.map.lock().unwrap();
+        let bus = map.entry(s.clone())
             .or_insert_with(|| {
                 std::thread::spawn(move || {
                     tmanager.do_work(s);
                 });
-                Bus::new(1)
+                Bus::new()
             });
 
         // Now that we have the Bus, get a receiver for this thread.
-        let mut receiver = bus.add_rx();
+        let receiver = bus.add_receiver();
+        if ts == "pblt3" {
+            return "PBLT3".to_string();
+        }
 
         // IMPORTANT: need to drop the bus explicitly here, as we are going
         // to block on the recv() call below, and would be effectively holding
         // a lock on the map, leading to a deadlock.
         drop(bus);
+        drop(map);
+
+        std::thread::sleep(std::time::Duration::from_secs(6));
 
         // Here we wait for the processing we are interested in to finish.
         receiver.recv().unwrap()
