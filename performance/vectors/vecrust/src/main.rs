@@ -13,12 +13,11 @@ mod tests {
 
     #[bench]
     fn small(b: &mut Bencher) {
-        let mut v = vec![];
         b.iter(move || {
+            let mut v = vec![];
             for i in 0..NUM_ITEMS_SMALL {
                 v.push(i);
             }
-            v.clear();
         })
     }
 
@@ -29,7 +28,6 @@ mod tests {
             for i in 0..NUM_ITEMS_BIG {
                 v.push(i);
             }
-            v.clear();
         })
     }
 }
