@@ -45,14 +45,35 @@ impl<K: Hash + Eq, V> GkHash<K, V> {
         );
 
         // Move data from old buckets to the new.
-        for bucket in old_buckets {
-            match bucket {
-                Entry::Empty => (),
-                Entry::Node(ref node) => {
-                    let index = self.bucket_index(&node.key);
-                    self.buckets[index] = bucket;
+        for mut bucket in old_buckets {
+            let index;
+            match &mut bucket {
+                Entry::Empty => continue,
+                Entry::Node(node) => {
+                    index = self.bucket_index(&node.key);
+
+                    let mut sub_bucket = std::mem::replace(&mut node.next, Box::new(Entry::Empty));
+                    while let Entry::Node(sub_node) = &mut *sub_bucket {
+                        let next_bucket =
+                            std::mem::replace(&mut sub_node.next, Box::new(Entry::Empty));
+
+                        let index = self.bucket_index(&sub_node.key);
+                        let mut target = &mut self.buckets[index];
+                        while let Entry::Node(target_node) = target {
+                            target = &mut target_node.next;
+                        }
+                        *target = *sub_bucket;
+
+                        sub_bucket = next_bucket;
+                    }
                 }
             }
+
+            let mut target = &mut self.buckets[index];
+            while let Entry::Node(target_node) = target {
+                target = &mut target_node.next;
+            }
+            *target = bucket;
         }
     }
 

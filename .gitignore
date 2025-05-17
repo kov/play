@@ -9,3 +9,4 @@ gl/test
 dmabuf/main
 node_modules
 target/
+Cargo.lock
