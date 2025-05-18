@@ -117,6 +117,28 @@ impl<K: Hash + Eq, V> GkHash<K, V> {
 
         None
     }
+
+    fn remove(&mut self, key: &K) -> Option<V> {
+        let index = self.bucket_index(&key);
+        let bucket = &mut self.buckets[index];
+
+        while let Entry::Node(node) = bucket {
+            if node.key == *key {
+                let next = std::mem::replace(&mut node.next, Box::new(Entry::Empty));
+                let removed = std::mem::replace(bucket, *next);
+
+                let Entry::Node(removed_node) = removed else {
+                    unreachable!();
+                };
+
+                self.used -= 1;
+
+                return Some(removed_node.value);
+            }
+        }
+
+        None
+    }
 }
 
 pub struct GkHashIter<'a, K, V> {
@@ -267,6 +289,39 @@ mod tests {
         // Test that all items showed up on the iterator.
         for b in map_check.into_iter() {
             assert_eq!(b, true);
+        }
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut map = GkHash::new();
+
+        assert_eq!(map.buckets.len(), 0);
+        assert_eq!(map.used, 0);
+
+        (0..100).for_each(|i| {
+            map.insert(format!("{i}"), i);
+        });
+
+        let removed = map.remove(&"50".to_string());
+        assert_eq!(removed, Some(50));
+
+        let mut map_check = vec![false; 100];
+        for (k, v) in map.iter() {
+            let i = *v as usize;
+            assert!(!map_check[i]);
+            map_check[i] = true;
+
+            assert_eq!(k, &v.to_string());
+        }
+
+        // Test that all items showed up on the iterator except for the one we removed.
+        for (i, b) in map_check.into_iter().enumerate() {
+            if i == 50 {
+                assert_eq!(b, false);
+            } else {
+                assert_eq!(b, true);
+            }
         }
     }
 }
