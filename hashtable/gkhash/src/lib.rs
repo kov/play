@@ -119,6 +119,65 @@ impl<K: Hash + Eq, V> GkHash<K, V> {
     }
 }
 
+pub struct GkHashIter<'a, K, V> {
+    buckets: &'a [Entry<K, V>],
+    index: usize,
+    entry: Option<&'a Entry<K, V>>,
+}
+
+impl<'a, K, V> GkHash<K, V> {
+    fn iter(&'a self) -> GkHashIter<'a, K, V> {
+        let (index, entry) = match self
+            .buckets
+            .iter()
+            .position(|b| matches!(b, Entry::Node(_)))
+        {
+            Some(index) => (index, Some(&self.buckets[index])),
+            None => (0, None),
+        };
+        GkHashIter {
+            buckets: &self.buckets,
+            index,
+            entry,
+        }
+    }
+}
+
+impl<'a, K, V> Iterator for GkHashIter<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.entry? {
+            Entry::Empty => return None,
+            Entry::Node(node) => {
+                // Save references we'll return for this round
+                let (key, value) = (&node.key, &node.value);
+
+                // Try to find the next item, starting from our node linked list.
+                if let Entry::Node(_) = &*node.next {
+                    self.entry = Some(&node.next);
+                } else {
+                    self.index += 1;
+                    self.entry = None;
+
+                    // Try to find the next bucket with a node.
+                    while self.index < self.buckets.len() {
+                        if let Entry::Node(_) = &self.buckets[self.index] {
+                            self.entry = Some(&self.buckets[self.index]);
+                            break;
+                        }
+
+                        self.index += 1;
+                    }
+                };
+
+                // Go ahead and return the ones we saved
+                Some((key, value))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,5 +229,44 @@ mod tests {
 
         assert_eq!(map.get(&"99".to_owned()).unwrap(), &99);
         assert!(map.get(&"100".to_owned()).is_none());
+
+        let mut map_check = vec![false; 100];
+        for (k, v) in map.iter() {
+            assert!(!map_check[*v as usize]);
+            map_check[*v as usize] = true;
+
+            assert_eq!(k, &v.to_string());
+        }
+
+        // Test that all items showed up on the iterator.
+        for b in map_check.into_iter() {
+            assert_eq!(b, true);
+        }
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut map = GkHash::new();
+
+        assert_eq!(map.buckets.len(), 0);
+        assert_eq!(map.used, 0);
+
+        (0..100).for_each(|i| {
+            map.insert(format!("{i}"), i);
+        });
+
+        let mut map_check = vec![false; 100];
+        for (k, v) in map.iter() {
+            let i = *v as usize;
+            assert!(!map_check[i]);
+            map_check[i] = true;
+
+            assert_eq!(k, &v.to_string());
+        }
+
+        // Test that all items showed up on the iterator.
+        for b in map_check.into_iter() {
+            assert_eq!(b, true);
+        }
     }
 }
