@@ -139,6 +139,62 @@ impl<K: Hash + Eq, V> GkHash<K, V> {
 
         None
     }
+
+    fn entry<'a>(&'a mut self, key: &'a K) -> MapEntry<'a, K, V> {
+        self.maybe_grow();
+
+        let index = self.bucket_index(key);
+        let bucket = &mut self.buckets[index];
+        while let Entry::Node(node) = bucket {
+            if node.key == *key {
+                return MapEntry { bucket, key };
+            }
+        }
+
+        MapEntry { bucket, key }
+    }
+}
+
+pub struct MapEntry<'a, K, V> {
+    bucket: &'a mut Entry<K, V>,
+    key: &'a K,
+}
+
+impl<'a, K: ToOwned<Owned = K>, V: Default> MapEntry<'_, K, V> {
+    fn or_insert(self, value: V) -> Self {
+        match self.bucket {
+            Entry::Empty => {
+                *self.bucket = Entry::Node(Node {
+                    key: self.key.to_owned(),
+                    value,
+                    next: Box::new(Entry::Empty),
+                });
+            }
+            Entry::Node(node) => {
+                let _ = std::mem::replace(&mut node.value, value);
+            }
+        };
+
+        self
+    }
+
+    fn and_modify(mut self, f: impl FnOnce(&mut V)) -> Self {
+        if let Entry::Empty = self.bucket {
+            *self.bucket = Entry::Node(Node {
+                key: self.key.to_owned(),
+                value: V::default(),
+                next: Box::new(Entry::Empty),
+            });
+        };
+
+        let Entry::Node(node) = &mut self.bucket else {
+            unreachable!("We ensure the entry is Node above");
+        };
+
+        f(&mut node.value);
+
+        self
+    }
 }
 
 pub struct GkHashIter<'a, K, V> {
@@ -323,5 +379,38 @@ mod tests {
                 assert_eq!(b, true);
             }
         }
+    }
+
+    #[test]
+    fn test_entry_or_insert() {
+        let mut map = GkHash::new();
+
+        let key = "kov".to_string();
+        map.entry(&key).or_insert(42);
+
+        assert_eq!(map.get(&key), Some(&42));
+
+        map.entry(&key).or_insert(13);
+
+        assert_eq!(map.get(&key), Some(&13));
+
+        map.entry(&key).or_insert(13);
+
+        assert_eq!(map.get(&key), Some(&13));
+    }
+
+    #[test]
+    fn test_entry_and_modify() {
+        let mut map = GkHash::new();
+
+        let key = "kov".to_string();
+        map.entry(&key).and_modify(|v| *v = 42);
+
+        assert_eq!(map.get(&key), Some(&42));
+
+        let key = "lala".to_string();
+        map.entry(&key).or_insert(13).and_modify(|v| *v = 42);
+
+        assert_eq!(map.get(&key), Some(&42));
     }
 }
