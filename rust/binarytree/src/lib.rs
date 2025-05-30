@@ -5,9 +5,17 @@ struct BinaryTree<K, V> {
     root: Option<Box<Node<K, V>>>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum BalanceAction {
+    Nothing,
+    RotateLeft,
+    RotateRight,
+}
+
 struct Node<K, V> {
     key: K,
     value: V,
+    height: usize,
     left: Option<Box<Node<K, V>>>,
     right: Option<Box<Node<K, V>>>,
 }
@@ -17,9 +25,42 @@ impl<K, V> Node<K, V> {
         Box::new(Node {
             key,
             value,
+            height: 1,
             left: None,
             right: None,
         })
+    }
+
+    fn update_height(&mut self) {
+        match (&self.left, &self.right) {
+            (Some(left), Some(right)) => {
+                self.height = 1 + left.height.max(right.height);
+            }
+            (None, Some(right)) => {
+                self.height = 1 + right.height;
+            }
+            (Some(left), None) => {
+                self.height = 1 + left.height;
+            }
+            (None, None) => {
+                self.height = 1;
+            }
+        }
+    }
+
+    fn check_balance(&self) -> BalanceAction {
+        let left_height = self.left.as_ref().map_or(0, |n| n.height);
+        let right_height = self.right.as_ref().map_or(0, |n| n.height);
+
+        let balance_factor = left_height as isize - right_height as isize;
+
+        if balance_factor < -1 {
+            BalanceAction::RotateLeft
+        } else if balance_factor > 1 {
+            BalanceAction::RotateRight
+        } else {
+            BalanceAction::Nothing
+        }
     }
 }
 
@@ -37,12 +78,35 @@ impl<K, V> BinaryTree<K, V> {
             return;
         }
 
-        self.at_key_mut(key, move |key, node| {
+        self.at_key_mut(key, move |key, node, visited_nodes| {
             if let Some(node) = node {
                 assert!(key == node.key);
                 node.value = value;
             } else {
                 *node = Some(Node::new(key, value));
+
+                // After insert, go through all the nodes we visited updating their heights and
+                // checking their balance, rotating as necessary.
+                for &node_ptr in visited_nodes.iter().rev() {
+                    // Safety: the pointers we collected are of Options we went through when visiting
+                    // nodes to get here. We have exclusive access to the tree (&mut self) throughout
+                    // the whole process. The tree owns these values. Nothing we do moves or destroys
+                    // the Options, so these are safe to dereference.
+                    let node: &mut Option<Box<Node<K, V>>> = unsafe { &mut *node_ptr };
+
+                    let action = if let Some(node) = node {
+                        node.update_height();
+                        node.check_balance()
+                    } else {
+                        unreachable!("These nodes can't be None, as we walked through them")
+                    };
+
+                    match action {
+                        BalanceAction::RotateLeft => BinaryTree::rotate_left(node),
+                        BalanceAction::RotateRight => BinaryTree::rotate_right(node),
+                        BalanceAction::Nothing => (),
+                    }
+                }
             }
         });
     }
@@ -69,23 +133,33 @@ impl<K, V> BinaryTree<K, V> {
         None
     }
 
-    fn at_key_mut(&mut self, key: K, func: impl FnOnce(K, &mut Option<Box<Node<K, V>>>))
-    where
+    fn at_key_mut(
+        &mut self,
+        key: K,
+        func: impl FnOnce(K, &mut Option<Box<Node<K, V>>>, &Vec<*mut Option<Box<Node<K, V>>>>),
+    ) where
         K: Ord,
     {
         let mut node = &mut self.root;
+        let mut visited_nodes = vec![];
         loop {
             if node.is_none() {
-                func(key, node);
+                func(key, node, &visited_nodes);
                 return;
             }
 
+            // We will need to revisit the nodes we went through to update
+            // their height tracking and potentially rotate, in case of unbalance.
+            visited_nodes.push(node as *mut _);
+
             let ordering = key.cmp(&node.as_ref().unwrap().key);
             match ordering {
-                Ordering::Less => node = &mut node.as_mut().unwrap().left,
+                Ordering::Less => {
+                    node = &mut node.as_mut().unwrap().left;
+                }
                 Ordering::Greater => node = &mut node.as_mut().unwrap().right,
                 Ordering::Equal => {
-                    func(key, node);
+                    func(key, node, &visited_nodes);
                     return;
                 }
             }
@@ -97,6 +171,13 @@ impl<K, V> BinaryTree<K, V> {
         if let Some(mut child) = node.as_mut().unwrap().right.take() {
             node.as_mut().unwrap().right = child.left.take();
             child.left = node.take();
+
+            // After rotation, update heights: first the old root (now left child), then new root
+            if let Some(child_left) = child.left.as_mut() {
+                child_left.update_height();
+            }
+            child.update_height();
+
             *node = Some(child);
         }
     }
@@ -106,6 +187,13 @@ impl<K, V> BinaryTree<K, V> {
         if let Some(mut child) = node.as_mut().unwrap().left.take() {
             node.as_mut().unwrap().left = child.right.take();
             child.right = node.take();
+
+            // After rotation, update heights: first the old root (now right child), then new root
+            if let Some(child_right) = child.right.as_mut() {
+                child_right.update_height();
+            }
+
+            child.update_height();
             *node = Some(child);
         }
     }
@@ -114,6 +202,33 @@ impl<K, V> BinaryTree<K, V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn in_order_keys<K: Ord + Clone, V: Clone>(tree: &BinaryTree<K, V>) -> Vec<K> {
+        fn walk<K: Ord + Clone, V: Clone>(node: &Option<Box<Node<K, V>>>, out: &mut Vec<K>) {
+            if let Some(n) = node {
+                walk(&n.left, out);
+                out.push(n.key.clone());
+                walk(&n.right, out);
+            }
+        }
+        let mut out = Vec::new();
+        walk(&tree.root, &mut out);
+        out
+    }
+
+    fn is_balanced<K, V>(node: &Option<Box<Node<K, V>>>) -> bool {
+        fn check<K, V>(node: &Option<Box<Node<K, V>>>) -> (bool, isize) {
+            if let Some(n) = node {
+                let (lb, lh) = check(&n.left);
+                let (rb, rh) = check(&n.right);
+                let balanced = lb && rb && (lh - rh).abs() <= 1;
+                (balanced, 1 + lh.max(rh))
+            } else {
+                (true, 0)
+            }
+        }
+        check(node).0
+    }
 
     #[test]
     fn test_basics() {
@@ -126,220 +241,94 @@ mod tests {
     }
 
     #[test]
-    fn test_rotate_left_does_nothing() {
-        let mut binary_tree = BinaryTree::new();
-
-        // This should create a very imbalanced tree, very left-leaning.
-        //       3
-        //     2
-        //   1
-        // 0
-        for i in (0..4).rev() {
-            binary_tree.insert(i, i);
+    fn test_balanced_after_sequential_inserts() {
+        let mut tree = BinaryTree::new();
+        for i in 0..100 {
+            tree.insert(i, i);
         }
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 3);
-        assert!(node.right.is_none());
-
-        for i in (0..3).rev() {
-            node = node.left.as_ref().unwrap();
-            assert_eq!(node.key, i);
-            assert!(node.right.is_none());
-        }
-
-        for i in (0..4) {
-            // Such that rotating left on any of the nodes...
-            binary_tree.at_key_mut(i, |_, node| {
-                assert_eq!(node.as_ref().unwrap().key, i);
-                BinaryTree::rotate_left(node);
-            });
-
-            /// ... will do nothing
-            let mut node = binary_tree.root.as_ref().unwrap();
-            assert_eq!(node.key, 3);
-            assert!(node.right.is_none());
-
-            for i in (0..3).rev() {
-                node = node.left.as_ref().unwrap();
-                assert_eq!(node.key, i);
-                assert!(node.right.is_none());
-            }
-        }
+        assert!(is_balanced(&tree.root));
+        let keys = in_order_keys(&tree);
+        assert_eq!(keys, (0..100).collect::<Vec<_>>());
     }
 
     #[test]
-    fn test_rotate_left() {
-        let mut binary_tree = BinaryTree::new();
-
-        // This should create a very imbalanced tree, very right-leaning.
-        // 0
-        //   1
-        //     2
-        //       3
-        for i in 0..4 {
-            binary_tree.insert(i, i);
+    fn test_balanced_after_reverse_inserts() {
+        let mut tree = BinaryTree::new();
+        for i in (0..100).rev() {
+            tree.insert(i, i);
         }
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 0);
-        assert!(node.left.is_none());
-
-        for i in 1..4 {
-            node = node.right.as_ref().unwrap();
-            assert_eq!(node.key, i);
-            assert!(node.left.is_none());
-        }
-
-        // Rotating on 1 should leave us with the following:
-        // 0
-        //    2
-        //  1   3
-        BinaryTree::rotate_left(&mut binary_tree.root.as_mut().unwrap().right);
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 0);
-        assert!(node.left.is_none());
-
-        node = node.right.as_ref().unwrap();
-        assert_eq!(node.key, 2);
-
-        assert_eq!(node.left.as_ref().unwrap().key, 1);
-        assert_eq!(node.right.as_ref().unwrap().key, 3);
-
-        // Rotating left on 0 should leave us with the following:
-        //     2
-        //  0     3
-        //    1
-        BinaryTree::rotate_left(&mut binary_tree.root);
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 2);
-
-        let left = node.left.as_ref().unwrap();
-        assert_eq!(left.key, 0);
-        assert!(left.left.is_none());
-        assert_eq!(left.right.as_ref().unwrap().key, 1);
-
-        let right = node.right.as_ref().unwrap();
-        assert_eq!(right.key, 3);
-        assert!(right.left.is_none());
-        assert!(right.right.is_none());
+        assert!(is_balanced(&tree.root));
+        let keys = in_order_keys(&tree);
+        assert_eq!(keys, (0..100).collect::<Vec<_>>());
     }
 
     #[test]
-    fn test_rotate_right() {
-        let mut binary_tree = BinaryTree::new();
-
-        // This should create a very imbalanced tree, very left-leaning.
-        //       3
-        //     2
-        //   1
-        // 0
-        for i in (0..4).rev() {
-            binary_tree.insert(i, i);
+    fn test_balanced_after_mixed_inserts() {
+        let mut tree = BinaryTree::new();
+        let data = [10, 20, 5, 15, 25, 2, 7, 12, 17, 22, 27];
+        for &x in &data {
+            tree.insert(x, x);
         }
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 3);
-        assert!(node.right.is_none());
-
-        for i in (0..3).rev() {
-            node = node.left.as_ref().unwrap();
-            assert_eq!(node.key, i);
-            assert!(node.right.is_none());
-        }
-
-        // Rotating on 2 should leave us with the following:
-        //       3
-        //    1
-        //  0   2
-        BinaryTree::rotate_right(&mut binary_tree.root.as_mut().unwrap().left);
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 3);
-        assert!(node.right.is_none());
-
-        node = node.left.as_ref().unwrap();
-        assert_eq!(node.key, 1);
-
-        assert_eq!(node.left.as_ref().unwrap().key, 0);
-        assert_eq!(node.right.as_ref().unwrap().key, 2);
-
-        // Rotating right on 3 should leave us with the following:
-        //     1
-        //  0     3
-        //      2
-        BinaryTree::rotate_right(&mut binary_tree.root);
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 1);
-
-        let left = node.left.as_ref().unwrap();
-        assert_eq!(left.key, 0);
-        assert!(left.left.is_none());
-        assert!(left.right.is_none());
-
-        let right = node.right.as_ref().unwrap();
-        assert_eq!(right.key, 3);
-        assert_eq!(right.left.as_ref().unwrap().key, 2);
-        assert!(right.right.is_none());
+        assert!(is_balanced(&tree.root));
+        let mut sorted = data.to_vec();
+        sorted.sort();
+        let keys = in_order_keys(&tree);
+        assert_eq!(keys, sorted);
     }
 
     #[test]
-    fn test_rotate_there_and_back_again() {
-        let mut binary_tree = BinaryTree::new();
+    fn test_manual_rotations_on_unbalanced_tree() {
+        // Manually construct an unbalanced right-leaning tree: 10 -> 20 -> 30
+        let mut tree = BinaryTree::new();
+        tree.root = Some(Box::new(Node {
+            key: 10,
+            value: 10,
+            height: 3, // intentionally unbalanced
+            left: None,
+            right: Some(Box::new(Node {
+                key: 20,
+                value: 20,
+                height: 2,
+                left: None,
+                right: Some(Box::new(Node {
+                    key: 30,
+                    value: 30,
+                    height: 1,
+                    left: None,
+                    right: None,
+                })),
+            })),
+        }));
 
-        // This should create a very imbalanced tree, very left-leaning.
-        //       3
-        //     2
-        //   1
-        // 0
-        for i in (0..4).rev() {
-            binary_tree.insert(i, i);
-        }
+        // Assert initial structure and unbalance
+        let root = tree.root.as_ref().unwrap();
+        assert_eq!(root.key, 10);
+        assert!(root.left.is_none());
+        assert_eq!(root.right.as_ref().unwrap().key, 20);
+        assert_eq!(root.right.as_ref().unwrap().right.as_ref().unwrap().key, 30);
+        assert!(!is_balanced(&tree.root));
+        assert_eq!(root.check_balance(), BalanceAction::RotateLeft);
 
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 3);
-        assert!(node.right.is_none());
+        // Rotate left at root
+        BinaryTree::rotate_left(&mut tree.root);
+        let root = tree.root.as_ref().unwrap();
+        assert_eq!(root.key, 20);
+        assert_eq!(root.left.as_ref().unwrap().key, 10);
+        assert_eq!(root.right.as_ref().unwrap().key, 30);
 
-        for i in (0..3).rev() {
-            node = node.left.as_ref().unwrap();
-            assert_eq!(node.key, i);
-            assert!(node.right.is_none());
-        }
+        // After rotation, should be balanced
+        assert!(is_balanced(&tree.root));
 
-        // Rotating right on 2 should leave us with the following:
-        //       3
-        //    1
-        //  0   2
-        BinaryTree::rotate_right(&mut binary_tree.root.as_mut().unwrap().left);
+        // Rotate right at root to restore original unbalanced structure
+        BinaryTree::rotate_right(&mut tree.root);
+        let root = tree.root.as_ref().unwrap();
+        assert_eq!(root.key, 10);
+        assert!(root.left.is_none());
+        assert_eq!(root.right.as_ref().unwrap().key, 20);
+        assert_eq!(root.right.as_ref().unwrap().right.as_ref().unwrap().key, 30);
 
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 3);
-        assert!(node.right.is_none());
-
-        node = node.left.as_ref().unwrap();
-        assert_eq!(node.key, 1);
-
-        assert_eq!(node.left.as_ref().unwrap().key, 0);
-        assert_eq!(node.right.as_ref().unwrap().key, 2);
-
-        // Rotating left on 1 should bring us back to where we were:
-        //       3
-        //     2
-        //   1
-        // 0
-        BinaryTree::rotate_left(&mut binary_tree.root.as_mut().unwrap().left);
-
-        let mut node = binary_tree.root.as_ref().unwrap();
-        assert_eq!(node.key, 3);
-        assert!(node.right.is_none());
-
-        for i in (0..3).rev() {
-            node = node.left.as_ref().unwrap();
-            assert_eq!(node.key, i);
-            assert!(node.right.is_none());
-        }
+        // Should be unbalanced again
+        assert!(!is_balanced(&tree.root));
+        assert_eq!(root.check_balance(), BalanceAction::RotateLeft);
     }
 }
