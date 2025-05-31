@@ -197,6 +197,86 @@ impl<K, V> BinaryTree<K, V> {
             *node = Some(child);
         }
     }
+
+    fn iter(&self) -> Iter<'_, K, V> {
+        // FIXME: we should maybe track depth and length at the tree level, so we can
+        // allocate this in one go?
+        let mut stack = vec![];
+        let mut link = self.root.as_deref();
+
+        // Begin by going all the way to the left of the tree, pushing each node onto the stack.
+        while let Some(node) = link {
+            stack.push(node);
+            link = node.left.as_deref();
+        }
+
+        Iter { stack }
+    }
+
+    fn iter_mut(&mut self) -> IterMut<'_, K, V> {
+        // FIXME: we should maybe track depth and length at the tree level, so we can
+        // allocate this in one go?
+        let mut stack = vec![];
+        let mut link = self.root.as_deref_mut();
+
+        // Begin by going all the way to the left of the tree, pushing each node onto the stack.
+        while let Some(node) = link {
+            stack.push(node as *mut _);
+            link = node.left.as_deref_mut();
+        }
+
+        IterMut { tree: self, stack }
+    }
+}
+
+struct Iter<'a, K, V> {
+    stack: Vec<&'a Node<K, V>>,
+}
+
+impl<'a, K, V> Iterator for Iter<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Pop the node we'll return...
+        let node = self.stack.pop()?;
+
+        // Then descend the tree using the right child of the node, pushing onto
+        // the stack. This makes sure we'll visit all nodes in order.
+        let mut next = node.right.as_deref();
+        while let Some(node) = next {
+            self.stack.push(node);
+            next = node.left.as_deref();
+        }
+
+        Some((&node.key, &node.value))
+    }
+}
+
+struct IterMut<'a, K, V> {
+    tree: &'a mut BinaryTree<K, V>,
+    stack: Vec<*mut Node<K, V>>,
+}
+
+impl<'a, K, V> Iterator for IterMut<'a, K, V> {
+    type Item = (&'a K, &'a mut V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Pop the node we'll return...
+        // Safety: we hold an exclusive reference to the tree, who owns all the nodes we are visiting.
+        // Only one instance of next() can be running at a time, as it takes an exclusive reference to
+        // the iterator. We do nothing that moves or destroys nodes, so dereferencing is safe.
+        let node = unsafe { &mut *self.stack.pop()? };
+
+        // Then descend the tree using the right child of the node, pushing onto
+        // the stack. This makes sure we'll visit all nodes in order.
+        let mut next = node.right.as_deref_mut();
+        while let Some(node) = next {
+            self.stack.push(node as *mut _);
+            next = node.left.as_deref_mut();
+        }
+
+        Some((&node.key, &mut node.value))
+    }
 }
 
 #[cfg(test)]
@@ -330,5 +410,47 @@ mod tests {
         // Should be unbalanced again
         assert!(!is_balanced(&tree.root));
         assert_eq!(root.check_balance(), BalanceAction::RotateLeft);
+    }
+
+    #[test]
+    fn test_iterator_in_order() {
+        let mut tree = BinaryTree::new();
+
+        let mut data = vec![15, 3, 20, 7, 1, 18, 25, 5, 10];
+
+        for &x in &data {
+            tree.insert(x, x * 2);
+        }
+
+        // Sort our reference vector.
+        data.sort();
+
+        // Create iterators with matching structure and compare them.
+        let expected = data.iter().map(|&k| (k, k * 2));
+        let actual = tree.iter().map(|(k, v)| (*k, *v));
+        assert!(expected.eq(actual));
+    }
+
+    #[test]
+    fn test_iterator_mut_in_order_and_mutation() {
+        let mut tree = BinaryTree::new();
+
+        let mut data = vec![15, 3, 20, 7, 1, 18, 25, 5, 10];
+
+        for &x in &data {
+            tree.insert(x, x * 2);
+        }
+
+        data.sort();
+
+        // First, mutate all values via the mutable iterator
+        for (k, v) in tree.iter_mut() {
+            *v += 1000;
+        }
+
+        // Now, check that the keys are in order and values are as expected
+        let expected = data.iter().map(|&k| (k, k * 2 + 1000));
+        let actual = tree.iter().map(|(k, v)| (*k, *v));
+        assert!(expected.eq(actual));
     }
 }
