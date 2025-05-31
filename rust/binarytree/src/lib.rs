@@ -199,12 +199,12 @@ impl<K, V> BinaryTree<K, V> {
     }
 
     fn iter(&self) -> Iter<'_, K, V> {
-        // FIXME: we should maybe track depth and length at the tree level, so we can
-        // allocate this in one go?
-        let mut stack = vec![];
-        let mut link = self.root.as_deref();
+        // The height of the root node is effectively the max depth a node can be at.
+        let max_depth = self.root.as_deref().map(|root| root.height).unwrap_or(0);
+        let mut stack = Vec::with_capacity(max_depth);
 
         // Begin by going all the way to the left of the tree, pushing each node onto the stack.
+        let mut link = self.root.as_deref();
         while let Some(node) = link {
             stack.push(node);
             link = node.left.as_deref();
@@ -214,12 +214,12 @@ impl<K, V> BinaryTree<K, V> {
     }
 
     fn iter_mut(&mut self) -> IterMut<'_, K, V> {
-        // FIXME: we should maybe track depth and length at the tree level, so we can
-        // allocate this in one go?
-        let mut stack = vec![];
-        let mut link = self.root.as_deref_mut();
+        // The height of the root node is effectively the max depth a node can be at.
+        let max_depth = self.root.as_deref().map(|root| root.height).unwrap_or(0);
+        let mut stack = Vec::with_capacity(max_depth);
 
         // Begin by going all the way to the left of the tree, pushing each node onto the stack.
+        let mut link = self.root.as_deref_mut();
         while let Some(node) = link {
             stack.push(node as *mut _);
             link = node.left.as_deref_mut();
