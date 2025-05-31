@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 
 struct BinaryTree<K, V> {
     root: Option<Box<Node<K, V>>>,
+    length: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -10,6 +11,12 @@ enum BalanceAction {
     Nothing,
     RotateLeft,
     RotateRight,
+}
+
+enum AtKeyAction {
+    Nothing,
+    AddNode,
+    RemoveNode,
 }
 
 struct Node<K, V> {
@@ -66,7 +73,14 @@ impl<K, V> Node<K, V> {
 
 impl<K, V> BinaryTree<K, V> {
     fn new() -> Self {
-        BinaryTree { root: None }
+        BinaryTree {
+            root: None,
+            length: 0,
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.length
     }
 
     fn insert(&mut self, key: K, value: V)
@@ -78,10 +92,12 @@ impl<K, V> BinaryTree<K, V> {
             return;
         }
 
-        self.at_key_mut(key, move |key, node, visited_nodes| {
+        let action = self.at_key_mut(key, move |key, node, visited_nodes| {
             if let Some(node) = node {
                 assert!(key == node.key);
                 node.value = value;
+
+                AtKeyAction::Nothing
             } else {
                 *node = Some(Node::new(key, value));
 
@@ -107,8 +123,16 @@ impl<K, V> BinaryTree<K, V> {
                         BalanceAction::Nothing => (),
                     }
                 }
+
+                AtKeyAction::AddNode
             }
         });
+
+        match action {
+            AtKeyAction::AddNode => self.length += 1,
+            AtKeyAction::RemoveNode => unreachable!(),
+            AtKeyAction::Nothing => (),
+        };
     }
 
     fn get(&self, key: &K) -> Option<&V>
@@ -136,16 +160,20 @@ impl<K, V> BinaryTree<K, V> {
     fn at_key_mut(
         &mut self,
         key: K,
-        func: impl FnOnce(K, &mut Option<Box<Node<K, V>>>, &Vec<*mut Option<Box<Node<K, V>>>>),
-    ) where
+        func: impl FnOnce(
+            K,
+            &mut Option<Box<Node<K, V>>>,
+            &Vec<*mut Option<Box<Node<K, V>>>>,
+        ) -> AtKeyAction,
+    ) -> AtKeyAction
+    where
         K: Ord,
     {
         let mut node = &mut self.root;
         let mut visited_nodes = vec![];
         loop {
             if node.is_none() {
-                func(key, node, &visited_nodes);
-                return;
+                return func(key, node, &visited_nodes);
             }
 
             // We will need to revisit the nodes we went through to update
@@ -159,8 +187,7 @@ impl<K, V> BinaryTree<K, V> {
                 }
                 Ordering::Greater => node = &mut node.as_mut().unwrap().right,
                 Ordering::Equal => {
-                    func(key, node, &visited_nodes);
-                    return;
+                    return func(key, node, &visited_nodes);
                 }
             }
         }
